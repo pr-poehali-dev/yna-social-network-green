@@ -1,9 +1,10 @@
 import json
 import os
 import psycopg2
+from datetime import datetime, timedelta
 
 def handler(event: dict, context) -> dict:
-    '''API для покупок в магазине'''
+    '''API для покупок в магазине с премиум функциями'''
     method = event.get('httpMethod', 'GET')
     
     if method == 'OPTIONS':
@@ -77,10 +78,59 @@ def handler(event: dict, context) -> dict:
             (user_id, item_type, item_name, price)
         )
         
+        message = f'{item_name} успешно приобретен!'
+        
         if item_type == 'premium_account':
-            cur.execute(f'UPDATE {schema}.users SET is_premium = TRUE WHERE id = %s', (user_id,))
+            cur.execute(f'''
+                UPDATE {schema}.users 
+                SET is_premium = TRUE, 
+                    verification_color = 'blue',
+                    is_verified = TRUE 
+                WHERE id = %s
+            ''', (user_id,))
+            message = 'Премиум аккаунт активирован! Получена синяя галочка и доступ ко всем темам радуги!'
+        
         elif item_type == 'verification':
-            cur.execute(f'UPDATE {schema}.users SET is_verified = TRUE WHERE id = %s', (user_id,))
+            cur.execute(f'''
+                UPDATE {schema}.users 
+                SET is_verified = TRUE, 
+                    verification_color = 'red' 
+                WHERE id = %s
+            ''', (user_id,))
+            message = 'Верификация получена! Красная галочка установлена!'
+        
+        elif item_type == 'boost':
+            boost_until = datetime.now() + timedelta(hours=24)
+            cur.execute(f'''
+                UPDATE {schema}.users 
+                SET boost_active_until = %s 
+                WHERE id = %s
+            ''', (boost_until, user_id))
+            message = 'Бустер активирован! Ваши посты будут в топе 24 часа!'
+        
+        elif item_type == 'custom_theme':
+            cur.execute(f'''
+                UPDATE {schema}.users 
+                SET custom_theme = 'red-dark' 
+                WHERE id = %s
+            ''', (user_id,))
+            message = 'Красно-темная тема установлена в профиль!'
+        
+        elif item_type == 'super_likes':
+            cur.execute(f'''
+                UPDATE {schema}.users 
+                SET super_likes_count = super_likes_count + 50 
+                WHERE id = %s
+            ''', (user_id,))
+            message = '50 супер-лайков добавлено! Каждый супер-лайк считается за 3 обычных!'
+        
+        elif item_type == 'premium_emoji':
+            cur.execute(f'''
+                UPDATE {schema}.users 
+                SET premium_emoji_enabled = TRUE 
+                WHERE id = %s
+            ''', (user_id,))
+            message = 'Премиум эмодзи разблокированы! Теперь вы можете добавлять эмодзи в посты!'
         
         conn.commit()
         
@@ -90,7 +140,7 @@ def handler(event: dict, context) -> dict:
             'body': json.dumps({
                 'success': True,
                 'new_balance': new_balance,
-                'message': f'{item_name} успешно приобретен!'
+                'message': message
             }),
             'isBase64Encoded': False
         }
