@@ -1,0 +1,16 @@
+{
+  "tests": [
+    {
+      "name": "Purchase item without enough balance",
+      "method": "POST",
+      "body": {
+        "user_id": 999,
+        "item_type": "premium",
+        "item_name": "Test Item",
+        "price": 9999
+      },
+      "expectedStatus": 404,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
